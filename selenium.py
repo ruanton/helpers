@@ -100,7 +100,7 @@ def locate_element(driver, xpath_or_id: str, error_message: str = None):
 
 def set_input(
         driver, xpath_or_id: str, text: str, clear_via_ctrl_a: bool = False, send_tab: bool = True,
-        not_found_error_msg: str =None
+        not_found_error_msg: str = None
 ):
     el = locate_element(driver, xpath_or_id, not_found_error_msg)
     if clear_via_ctrl_a:
