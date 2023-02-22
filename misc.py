@@ -115,3 +115,16 @@ def ignore_exceptions(_func: callable = None, *,
         return decorator
     else:
         return decorator(_func)
+
+
+class FrozenClass(object):
+    __frozen = False
+    def __setattr__(self, key, value):
+        if self.__frozen and not hasattr(self, key):
+            raise TypeError(f'{self} is a frozen class')
+        object.__setattr__(self, key, value)
+    def freeze(self):
+        self.__frozen = True
+
+    def unfreeze(self):
+        self.__frozen = False
