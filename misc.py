@@ -31,7 +31,7 @@ def json_loads(data: str):
     return simplejson.loads(data, use_decimal=True)
 
 
-def get_download_path():
+def get_download_path() -> str:
     """Returns the default downloads path for linux or windows"""
     if os.name == 'nt':
         import winreg
@@ -44,7 +44,7 @@ def get_download_path():
         return os.path.join(os.path.expanduser('~'), 'downloads')
 
 
-def http_request(method, url, retries=5, random_retry_pause=0, **kwargs):
+def http_request(method: str, url: str, retries: int = 5, random_retry_pause: float = 0, **kwargs):
     while True:
         try:
             resp = requests.request(method, url, **kwargs)
@@ -86,15 +86,16 @@ def exception_descr(ex, tb=None):
     return ''.join(result)
 
 
-def get_logger(name: str = None):
+def get_logger(name: str = None) -> logging.Logger:
     logging.basicConfig(format=LOGING_FORMAT, level=logging.INFO)
     return logging.getLogger(name if name else __name__)
 
 
-def ignore_exceptions(_func: callable = None, *,
-                      exceptions: typing.Type[Exception] | Iterable[typing.Type[Exception]] = Exception,
-                      logger: logging.Logger = None, loglevel: int = logging.ERROR):
-
+def ignore_exceptions(
+        _func: callable = None, *,
+        exceptions: typing.Type[Exception] | Iterable[typing.Type[Exception]] = Exception,
+        logger: logging.Logger = None, loglevel: int = logging.ERROR
+):
     if not isinstance(exceptions, Iterable):
         exceptions = [exceptions]
 
@@ -119,12 +120,49 @@ def ignore_exceptions(_func: callable = None, *,
 
 class FrozenClass(object):
     __frozen = False
+
     def __setattr__(self, key, value):
         if self.__frozen and not hasattr(self, key):
             raise TypeError(f'{self} is a frozen class')
         object.__setattr__(self, key, value)
+
     def freeze(self):
         self.__frozen = True
 
     def unfreeze(self):
         self.__frozen = False
+
+
+def todict(obj, class_key=None):
+    """
+    Generic object to dict converter. Recursively convert.
+    Useful for testing and asserting objects with expectation.
+    Source: https://gist.github.com/sairamkrish/ab68be93b53b34c98e24908c67dfda0d
+    """
+    if isinstance(obj, dict):
+        data = {}
+        for (k, v) in obj.items():
+            data[k] = todict(v, class_key)
+        return data
+
+    elif hasattr(obj, '_ast'):
+        # noinspection PyProtectedMember
+        return todict(obj._ast())
+
+    elif hasattr(obj, '__iter__') and not isinstance(obj, str):
+        return [todict(v, class_key) for v in obj]
+
+    elif hasattr(obj, '__dict__'):
+        data = dict([
+            (key, todict(value, class_key)) for key, value in obj.__dict__.items()
+            if not callable(value) and not key.startswith('_')
+        ])
+        if class_key is not None and hasattr(obj, "__class__"):
+            data[class_key] = obj.__class__.__name__
+        return data
+
+    elif isinstance(obj, datetime.datetime):
+        return obj.strftime("%Y-%m-%d %H:%M:%S%z")
+
+    else:
+        return obj
