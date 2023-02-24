@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError, MaxRetryError, NewConnectionError
 
-LOGING_FORMAT = '%(levelname)-8s [%(asctime)s] %(message)s'
+LOGGING_FORMAT = '%(levelname)-8s [%(asctime)s] %(message)s'
 
 
 def _json_serial(obj):
@@ -87,7 +87,7 @@ def exception_descr(ex, tb=None):
 
 
 def get_logger(name: str = None) -> logging.Logger:
-    logging.basicConfig(format=LOGING_FORMAT, level=logging.INFO)
+    logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
     return logging.getLogger(name if name else __name__)
 
 
