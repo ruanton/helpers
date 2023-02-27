@@ -1,10 +1,12 @@
 import os
+import logging
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver import Chrome
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.remote.webelement import WebElement
 
 
 DEFAULT_TIMEOUT = 60
@@ -57,7 +59,31 @@ def wait_for_ajax(driver, timeout: float = DEFAULT_TIMEOUT):
     wait.until(lambda x: x.execute_script(js_is_ajax_finished))
 
 
-def wait_for_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOUT):
+class ChangesWaiter:
+    def __init__(self, driver, xpath: str, timeout: float = DEFAULT_TIMEOUT):
+        self.driver = driver
+        self.xpath = xpath
+        self.timeout = timeout
+
+    def get_inner_htmls(self):
+        return [x.get_attribute('innerHTML') for x in self.driver.find_elements(By.XPATH, self.xpath)]
+
+    def __enter__(self):
+        self.inner_htmls = self.get_inner_htmls()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            WebDriverWait(self.driver, self.timeout).until(lambda x: self.inner_htmls != self.get_inner_htmls())
+
+
+def wait_for_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOUT, msg: str = None):
+    if driver.find_elements(by=by, value=value):
+        return
+
+    if msg:
+        logging.info(msg)
+
     wait = WebDriverWait(driver, timeout)
     wait.until(lambda x: x.find_elements(by, value))
 
@@ -65,6 +91,11 @@ def wait_for_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOU
 def wait_for_no_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOUT):
     wait = WebDriverWait(driver, timeout)
     wait.until(lambda x: not x.find_elements(by, value))
+
+
+def wait_for_different_url(driver, url: str, timeout: float = DEFAULT_TIMEOUT):
+    wait = WebDriverWait(driver, timeout)
+    wait.until(lambda x: x.current_url != url )
 
 
 def js_click(element, timeout: float = DEFAULT_TIMEOUT, wait_changes: bool = True, wait_ajax: bool = True):
@@ -85,8 +116,11 @@ def js_click(element, timeout: float = DEFAULT_TIMEOUT, wait_changes: bool = Tru
         wait_for_ajax(driver, timeout)
 
 
-def locate_element(driver, xpath_or_id: str, error_message: str = None):
-    els = driver.find_elements(By.XPATH if xpath_or_id.startswith('/') else By.ID, xpath_or_id)
+def locate_element(driver, xpath_or_id: str, error_message: str = None) -> WebElement:
+    if xpath_or_id.startswith('/') or xpath_or_id.startswith('./'):
+        els = driver.find_elements(By.XPATH, xpath_or_id)
+    else:
+        els = driver.find_elements(By.ID, xpath_or_id)
 
     if error_message:
         error_message = error_message + ' - '
