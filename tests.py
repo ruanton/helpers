@@ -1,13 +1,33 @@
 import datetime
-
+import decimal
+from decimal import Decimal
 from django.test import TransactionTestCase
 
+# library imports
 from .dateutils import date_range, strip_time, local_now_tz_aware, month_first_day, month_last_day
 from .dateutils import prev_month_first_day, prev_month_last_day, next_month_first_day, next_month_last_day
 from .semaphore import Semaphore, SemaphoreLockedException
+from .decimal import dec_round, dec_round_down, dec_round_up
 
 
 class HelpersTests(TransactionTestCase):
+
+    def test_decimal(self):
+        prec = decimal.getcontext().prec
+        a = Decimal(f'3.{"3"*(prec-1)}')
+        x = a*3 + 10
+        y = dec_round_down(lambda: a*3 + 10)
+        z = dec_round_down(lambda: a*3 + 10, 5)
+        self.assertEqual(x, 20)
+        self.assertEqual(y, Decimal(f'19.{"9"*(prec-2)}'))
+        self.assertEqual(z, Decimal('19.99999'))
+
+        x = a + 10
+        y = dec_round_up(lambda: a + 10)
+        z = dec_round_up(lambda: a + 10, 3)
+        self.assertEqual(x, Decimal(f'13.{"3"*(prec-2)}'))
+        self.assertEqual(y, Decimal(f'13.{"3"*(prec-3)}4'))
+        self.assertEqual(z, Decimal('13.334'))
 
     def test_dateutils(self):
         ref_date = datetime.datetime(year=2022, month=2, day=14)
