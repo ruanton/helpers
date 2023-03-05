@@ -13,8 +13,6 @@ from collections.abc import Iterable
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError, MaxRetryError, NewConnectionError
 
-LOGGING_FORMAT = '%(levelname)-8s [%(asctime)s] %(message)s'
-
 
 def _json_serial(obj):
     """JSON serializer for objects not serializable by default json code"""
@@ -87,8 +85,16 @@ def exception_descr(ex, tb=None):
 
 
 def get_logger(name: str = None) -> logging.Logger:
-    logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
-    return logging.getLogger(name if name else __name__)
+    raise RuntimeError("""
+    get_logger() deprecated, instead "log = get_logger()" do:
+
+    in settings.py:
+        LOGGING_FORMAT = '%(levelname)-8s [%(asctime)s] %(message)s'
+        logging.basicConfig(format=LOGGING_FORMAT, level=logging.INFO)
+
+    in each module:
+        log = logging.getLogger(__name__)
+    """)
 
 
 def ignore_exceptions(
