@@ -134,14 +134,17 @@ def locate_element(driver, xpath_or_id: str, error_message: str = None) -> WebEl
 
 def set_input(
         driver, xpath_or_id: str, text: str, clear_via_ctrl_a: bool = False, send_tab: bool = True,
-        not_found_error_msg: str = None, ignore_symbols: str = None
+        not_found_error_msg: str = None, ignore_symbols: str = None, set_via_js:bool = False
 ):
     el = locate_element(driver, xpath_or_id, not_found_error_msg)
     if clear_via_ctrl_a:
         el.send_keys(Keys.CONTROL + 'a')
     else:
         el.clear()
-    el.send_keys(text)
+    if set_via_js:
+        driver.execute_script(f'arguments[0].value = "{text}"', el)
+    else:
+        el.send_keys(text)
     if send_tab:
         el.send_keys(Keys.TAB)
     current_text = el.get_attribute('value')
