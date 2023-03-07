@@ -15,6 +15,8 @@ DEFAULT_POSITION = (0, 0)
 DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
                      'Chrome/73.0.3683.103 Safari/537.36'
 
+log = logging.getLogger(__name__)
+
 
 def start_chrome(
         chrome_driver: str,
@@ -82,7 +84,7 @@ def wait_for_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOU
         return
 
     if msg:
-        logging.info(msg)
+        log.info(msg)
 
     wait = WebDriverWait(driver, timeout)
     wait.until(lambda x: x.find_elements(by, value))
