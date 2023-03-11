@@ -17,7 +17,7 @@ class Semaphore:
         now = local_now_tz_aware()
         try:
             store = SemaphoreRecord.objects.get(pk=key)
-            if store.locked and (now - store.pinged).seconds < store.timeout:
+            if store.locked and (now - store.pinged).total_seconds() < store.timeout:
                 raise SemaphoreLockedException(store)
 
             records_updated = SemaphoreRecord.objects.filter(pk=key, modified=store.modified).update(
