@@ -172,3 +172,7 @@ def todict(obj, class_key=None):
 
     else:
         return obj
+
+
+def notimplemented_error(*args):
+    raise NotImplementedError(*args)
