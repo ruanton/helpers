@@ -1,4 +1,5 @@
 import os
+import io
 import sys
 import traceback
 import simplejson
@@ -9,7 +10,8 @@ import random
 import logging
 import typing
 import functools
-from collections.abc import Iterable
+import csv
+from collections.abc import Iterable, Callable
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError, MaxRetryError, NewConnectionError
 
@@ -84,6 +86,7 @@ def exception_descr(ex, tb=None):
     return ''.join(result)
 
 
+# noinspection PyUnusedLocal
 def get_logger(name: str = None) -> logging.Logger:
     raise RuntimeError("""
     get_logger() deprecated, instead "log = get_logger()" do:
@@ -176,3 +179,34 @@ def todict(obj, class_key=None):
 
 def notimplemented_error(*args):
     raise NotImplementedError(*args)
+
+
+def iter_blocks(objects: list, size: int):
+    """
+    Create iterable for blocks of given size.
+
+    @param objects: the list of objects
+    @param size: size of a single block
+    @return: generator of slices
+    """
+    offset = 0
+    while offset < len(objects):
+        yield objects[offset:offset+size]
+        offset += size
+
+
+def in_memory_csv(objects: Iterable, headers: Iterable[str], values: Callable[[object], Iterable]) -> io.StringIO:
+    """
+    Create in-memory CSV with given objects.
+
+    @param objects: all objects to put in CSV
+    @param headers: headers
+    @param values: callable to get values from a single object
+    """
+    mem_csv = io.StringIO()
+    writer = csv.writer(mem_csv)
+    writer.writerow(headers)
+    for obj in objects:
+        writer.writerow(values(obj))
+    mem_csv.seek(0)
+    return mem_csv

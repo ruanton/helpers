@@ -7,7 +7,8 @@ from django.test import TransactionTestCase
 from .dateutils import date_range, strip_time, local_now_tz_aware, month_first_day, month_last_day
 from .dateutils import prev_month_first_day, prev_month_last_day, next_month_first_day, next_month_last_day
 from .semaphore import Semaphore, SemaphoreLockedException
-from .decimal import dec_round, dec_round_down, dec_round_up
+from .decimal import dec_round_down, dec_round_up
+from .misc import iter_blocks, in_memory_csv
 
 
 class HelpersTests(TransactionTestCase):
@@ -80,3 +81,11 @@ class HelpersTests(TransactionTestCase):
         s.ping()
         self.assertLessEqual(s.locked, now)
         self.assertGreaterEqual(s.pinged, now)
+
+    def test_misc(self):
+        blocks = list(iter_blocks(list(range(25)), 10))
+        self.assertEqual(len(blocks), 3)
+        self.assertEqual(blocks[-1], [20, 21, 22, 23, 24])
+
+        mem_csv = in_memory_csv((1, 2, 3), headers=('one', 'two', 'three'), values=lambda x: (x, x**2, x**3))
+        self.assertEqual(mem_csv.read().splitlines(), ['one,two,three', '1,1,1', '2,4,8', '3,9,27'])
