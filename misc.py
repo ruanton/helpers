@@ -210,3 +210,12 @@ def in_memory_csv(objects: Iterable, headers: Iterable[str], values: Callable[[o
         writer.writerow(values(obj))
     mem_csv.seek(0)
     return mem_csv
+
+
+def is_integer(value: str) -> bool:
+    try:
+        float(value)
+    except ValueError:
+        return False
+    else:
+        return float(value).is_integer()
