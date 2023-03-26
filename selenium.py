@@ -115,8 +115,8 @@ class ChromeEx(Chrome):
             proxy: str = None,
             proxies_fallback: tuple[str] = (),
             headless: bool = True,
-            dimensions: tuple[int,int] = DEFAULT_DIMENSIONS,
-            position: tuple[int,int] = DEFAULT_POSITION,
+            dimensions: tuple[int, int] = DEFAULT_DIMENSIONS,
+            position: tuple[int, int] = DEFAULT_POSITION,
             **kwargs):
 
         self._tempfile_proxy_chrome_extension = None
@@ -224,7 +224,7 @@ def wait_for_no_element(driver, by: By, value: str, timeout: float = DEFAULT_TIM
 
 def wait_for_different_url(driver, url: str, timeout: float = DEFAULT_TIMEOUT):
     wait = WebDriverWait(driver, timeout)
-    wait.until(lambda x: x.current_url != url )
+    wait.until(lambda x: x.current_url != url)
 
 
 def js_click(element, timeout: float = DEFAULT_TIMEOUT, wait_changes: bool = True, wait_ajax: bool = True):
@@ -263,7 +263,7 @@ def locate_element(driver, xpath_or_id: str, error_message: str = None) -> WebEl
 
 def set_input(
         driver, xpath_or_id: str, text: str, clear_via_ctrl_a: bool = False, send_tab: bool = True,
-        not_found_error_msg: str = None, ignore_symbols: str = None, set_via_js:bool = False
+        not_found_error_msg: str = None, ignore_symbols: str = None, set_via_js: bool = False
 ):
     el = locate_element(driver, xpath_or_id, not_found_error_msg)
     if clear_via_ctrl_a:
