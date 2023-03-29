@@ -1,5 +1,6 @@
 import os
 import logging
+import time
 import urllib.request
 import zipfile
 from random import choice
@@ -10,7 +11,7 @@ from selenium.webdriver.chrome.webdriver import DEFAULT_PORT
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import WebDriverException
+from selenium.common.exceptions import WebDriverException, StaleElementReferenceException
 from selenium.webdriver.remote.webelement import WebElement
 
 
@@ -195,7 +196,16 @@ class ChangesWaiter:
         self.timeout = timeout
 
     def get_inner_htmls(self):
-        return [x.get_attribute('innerHTML') for x in self.driver.find_elements(By.XPATH, self.xpath)]
+        ex_last = None
+        for _ in range(10):
+            try:
+                result = [x.get_attribute('innerHTML') for x in self.driver.find_elements(By.XPATH, self.xpath)]
+                return result
+            except StaleElementReferenceException as ex:
+                ex_last = ex
+                time.sleep(0.1)
+                pass
+        raise ex_last
 
     def __enter__(self):
         self.inner_htmls = self.get_inner_htmls()
@@ -206,20 +216,28 @@ class ChangesWaiter:
             WebDriverWait(self.driver, self.timeout).until(lambda x: self.inner_htmls != self.get_inner_htmls())
 
 
-def wait_for_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOUT, msg: str = None):
-    if driver.find_elements(by=by, value=value):
+def wait_for_element(element, by: By, value: str, timeout: float = DEFAULT_TIMEOUT, msg: str = None):
+    if element.find_elements(by=by, value=value):
         return
 
     if msg:
         log.info(msg)
 
+    driver = getattr(element, 'parent', element)
     wait = WebDriverWait(driver, timeout)
-    wait.until(lambda x: x.find_elements(by, value))
+    wait.until(lambda x: element.find_elements(by, value))
 
 
-def wait_for_no_element(driver, by: By, value: str, timeout: float = DEFAULT_TIMEOUT):
+def wait_for_no_element(element, by: By, value: str, timeout: float = DEFAULT_TIMEOUT, msg: str = None):
+    if not element.find_elements(by=by, value=value):
+        return
+
+    if msg:
+        log.info(msg)
+
+    driver = getattr(element, 'parent', element)
     wait = WebDriverWait(driver, timeout)
-    wait.until(lambda x: not x.find_elements(by, value))
+    wait.until(lambda x: not element.find_elements(by, value))
 
 
 def wait_for_different_url(driver, url: str, timeout: float = DEFAULT_TIMEOUT):
