@@ -263,11 +263,11 @@ def js_click(element, timeout: float = DEFAULT_TIMEOUT, wait_changes: bool = Tru
         wait_for_ajax(driver, timeout)
 
 
-def locate_element(driver, xpath_or_id: str, error_message: str = None) -> WebElement:
+def locate_element(element, xpath_or_id: str, error_message: str = None) -> WebElement:
     if xpath_or_id.startswith('/') or xpath_or_id.startswith('./'):
-        els = driver.find_elements(By.XPATH, xpath_or_id)
+        els = element.find_elements(By.XPATH, xpath_or_id)
     else:
-        els = driver.find_elements(By.ID, xpath_or_id)
+        els = element.find_elements(By.ID, xpath_or_id)
 
     if error_message:
         error_message = error_message + ' - '
