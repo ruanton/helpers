@@ -136,6 +136,9 @@ class ChromeEx(Chrome):
                 options.add_argument(f'--load-extension={",".join(extensions_dirs)}')
 
         if proxy:
+            if not proxies_fallback:
+                raise RuntimeError(f'proxy without proxies_fallback given')
+
             if _test_proxy(proxy):
                 log.info(f'Ping до ya.ru успешен, используем назначенный прокси {proxy}')
             else:
@@ -160,6 +163,8 @@ class ChromeEx(Chrome):
         self.set_window_position(*position)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_val:
+            _ = 0
         super().__exit__(exc_type, exc_val, exc_tb)
         if self._tempfile_proxy_chrome_extension:
             self._tempfile_proxy_chrome_extension.__exit__(exc_type, exc_val, exc_tb)
