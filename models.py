@@ -10,3 +10,19 @@ class SemaphoreRecord(models.Model):
 
     def __str__(self):
         return self.key
+
+
+class TaskHandle(models.Model):
+    task_id = models.CharField('Task ID', max_length=32)
+    ormq_id = models.IntegerField('Queue record ID', null=True, blank=True)
+    cancel_requested = models.BooleanField('Task cancellation requested', default=False)
+    created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False)
+    updated_at = models.DateTimeField('Updated at', auto_now=True, editable=False)
+
+    class Meta:
+        # indexes = [
+        #     models.Index(fields=['task_id'], name='idx_task_handle_task_id')
+        # ]
+        constraints = [
+            models.UniqueConstraint(fields=['task_id'], name='uniq_task_handle_task_id')
+        ]
