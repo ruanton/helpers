@@ -6,7 +6,7 @@ from django.test import TransactionTestCase
 # library imports
 from .dateutils import date_range, strip_time, local_now_tz_aware, month_first_day, month_last_day
 from .dateutils import prev_month_first_day, prev_month_last_day, next_month_first_day, next_month_last_day
-from .semaphore import Semaphore, SemaphoreLockedException
+from .semaphore import Semaphore, SemaphoreLockedException, semaphore_wait
 from .decimal import dec_round_down, dec_round_up
 from .misc import iter_blocks, in_memory_csv
 
@@ -81,6 +81,24 @@ class HelpersTests(TransactionTestCase):
         s.ping()
         self.assertLessEqual(s.locked, now)
         self.assertGreaterEqual(s.pinged, now)
+        s.release()
+
+        s = semaphore_wait(key='test', sem_timeout=5)
+        now = local_now_tz_aware()
+        self.assertRaises(SemaphoreLockedException, lambda: semaphore_wait('test', wait_timeout=0.5))
+        s.release()
+
+        s1 = semaphore_wait(key='test', sem_timeout=3.5)
+        callback_num = 0
+        def sem_callback(ex):
+            nonlocal callback_num
+            print(f'ex: {ex}')
+            callback_num += 1
+        s2 = semaphore_wait(key='test', callback=sem_callback, cb_delay=1, retry_delay=0.1)
+        self.assertEqual(callback_num, 4)
+        s1.release()
+        s2.release()
+
 
     def test_misc(self):
         blocks = list(iter_blocks(list(range(25)), 10))
