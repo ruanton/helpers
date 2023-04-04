@@ -1,10 +1,13 @@
 import functools
+import logging
 from django.db.utils import IntegrityError
 
 from helpers.dateutils import local_now_tz_aware
 from .models import SemaphoreRecord
 
-SEMAPHORE_DEFAULT_TIMEOUT = 300.0  # timeout in seconds
+log = logging.getLogger(__name__)
+
+SEMAPHORE_DEFAULT_TIMEOUT = 300.0  # default timeout in seconds
 
 
 class SemaphoreLockedException(RuntimeError):
@@ -39,38 +42,40 @@ class Semaphore:
                 store = SemaphoreRecord.objects.get(pk=key)
                 raise SemaphoreLockedException(store)
 
-        self.store = store
+        self.store = store;  'database record of the semaphore'
 
     def ping(self):
+        if not self.store:
+            raise RuntimeError('semaphore is already released')
         self.store.pinged = local_now_tz_aware()
         self.store.save()
 
     def release(self):
-        self.store.locked = None
-        self.store.pinged = None
-        self.store.save()
+        self.store.delete()
+        self.store = None
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.release()
+        if self.store:
+            self.release()
 
     @property
     def key(self):
-        return self.store.key
+        return self.store.key if self.store else None
 
     @property
     def timeout(self):
-        return self.store.timeout
+        return self.store.timeout if self.store else None
 
     @property
     def locked(self):
-        return self.store.locked
+        return self.store.locked if self.store else False
 
     @property
     def pinged(self):
-        return self.store.pinged
+        return self.store.pinged if self.store else None
 
 
 def semaphore(_func: callable = None, *, key: str = None, timeout: float = SEMAPHORE_DEFAULT_TIMEOUT):
