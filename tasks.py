@@ -19,7 +19,7 @@ def async_task_with_handle(func, *args, **kwargs) -> TaskHandle:
     @param func: the task function
     @param args: positional arguments of the task function
     @param kwargs: keyword arguments of the task function
-    @return: TaskHandle object
+    @return: TaskHandle object created
     """
     with transaction.atomic():
         task_id = async_task(func, *args, **kwargs)
@@ -28,40 +28,42 @@ def async_task_with_handle(func, *args, **kwargs) -> TaskHandle:
         return task_handle
 
 
-CURRENT_TASK_ID_ATTR_NAME = '__current_task_id'
+CURRENT_TASK_INFO_ATTR_NAME = '__current_task_info'
 
 
 @receiver(pre_execute)
 def django_q_pre_execute_callback(sender, func, task, **kwargs):
     """
-    Saves task id globally. Turned on by settings.CURRENT_TASK_ID_TRACKING = True.
-    If turned on, requires clearing global attribute after each task execution (use current_task_id decorator).
+    Saves task info globally. Turned on by settings.CURRENT_TASK_INFO_TRACKING = True.
+    If turned on, requires clearing the global attribute after each task execution (use current_task_info decorator).
     """
     _, _, _ = sender, func, kwargs
-    if settings.CURRENT_TASK_ID_TRACKING:
-        task_id = getattr(django_q_pre_execute_callback, CURRENT_TASK_ID_ATTR_NAME, None)
-        if task_id:
-            raise RuntimeError(f'current_task_id already set to "{task_id}", forgot to use current_task_id decorator?')
-        task_id = task["id"]
-        log.info(f'pre_execute: task_id={task_id}')
-        setattr(django_q_pre_execute_callback, CURRENT_TASK_ID_ATTR_NAME, task_id)  # save the task id globally
+    if settings.CURRENT_TASK_INFO_TRACKING:
+        existing_task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
+        if existing_task_info:
+            raise RuntimeError(
+                f'{CURRENT_TASK_INFO_ATTR_NAME} already set to "... task_id={existing_task_info["id"]} ...", '
+                f'forgot to use "current_task_info" decorator?'
+            )
+        log.info(f'pre_execute: task_id={task["id"]}')
+        setattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, task)  # save the task info globally
 
 
-def current_task_id(_func: callable = None):
+def current_task_info(_func: callable = None):
     """
-    This decorator gives task_id to function and clears global attribute on task exit. Must be outermost.
+    This decorator gives task info to function and clears the task info global attribute on exit. Must be outermost.
     """
     def decorator(func: callable):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            task_id = getattr(django_q_pre_execute_callback, CURRENT_TASK_ID_ATTR_NAME)
+            task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
             try:
-                return func(*args, **kwargs, task_id=task_id)
+                return func(*args, **kwargs, task=task_info)
             finally:
-                actual_task_id = getattr(django_q_pre_execute_callback, CURRENT_TASK_ID_ATTR_NAME)
-                if actual_task_id != task_id:
-                    raise RuntimeError(f'incorrect task id: {actual_task_id}, expected: {task_id}')
-                delattr(django_q_pre_execute_callback, CURRENT_TASK_ID_ATTR_NAME)
+                actual_task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
+                if actual_task_info['id'] != task_info['id']:
+                    raise RuntimeError(f'incorrect task id: {actual_task_info["id"]}, expected: {task_info["id"]}')
+                delattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
 
         return wrapper
 
