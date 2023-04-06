@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 from django.db import models
 
@@ -19,15 +20,9 @@ class TaskHandle(models.Model):
         'OrmQ ID', null=True, blank=True, editable=False,
         help_text='Django-Q ORM message broker record ID'
     )
-    cancel_requested = models.BooleanField(
-        'Cancel', default=False, help_text='task cancellation requested'
-    )
-    created_at = models.DateTimeField(
-        'Created at', auto_now_add=True, editable=False, help_text='database record created at'
-    )
-    updated_at = models.DateTimeField(
-        'Updated at', auto_now=True, editable=False, help_text='database record last updated at'
-    )
+    cancel_requested = models.BooleanField('Cancel', default=False, help_text='task cancellation requested')
+    created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False, help_text='db record created at')
+    updated_at = models.DateTimeField('Updated at', auto_now=True, editable=False, help_text='db record updated at')
 
     def __str__(self):
         return f'TaskHandle(id={self.id}, task_id={self.task_id}, ormq_id={self.ormq_id if self.ormq_id else "?"})'
@@ -44,4 +39,36 @@ class TaskHandle(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=['task_id'], name='uniq_task_handle_task_id')
+        ]
+
+
+LOG_LEVELS = (
+    (logging.NOTSET, 'NotSet'),
+    (logging.INFO, 'Info'),
+    (logging.WARNING, 'Warning'),
+    (logging.DEBUG, 'Debug'),
+    (logging.ERROR, 'Error'),
+    (logging.FATAL, 'Fatal'),
+)
+
+
+class LogEntry(models.Model):
+    name = models.CharField('Logger name', max_length=100)
+    level = models.PositiveSmallIntegerField(choices=LOG_LEVELS, default=logging.ERROR)
+    msg = models.TextField()
+    trace = models.TextField(blank=True)
+    task_id = models.CharField('Task ID', max_length=32, blank=True, editable=False)
+    username = models.CharField(max_length=150, blank=True, editable=False)
+    created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False, help_text='db record created at')
+
+    def __str__(self):
+        return self.msg
+
+    class Meta:
+        ordering = ('-created_at',)
+        verbose_name_plural = verbose_name = 'Logging'
+
+        indexes = [
+            models.Index(fields=['level', '-created_at'], name='idx_log_entry_level'),
+            models.Index(fields=['task_id', '-created_at'], name='idx_log_entry_task_id'),
         ]

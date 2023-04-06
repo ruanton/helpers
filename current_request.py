@@ -9,6 +9,7 @@
 #
 #
 
+import logging
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser, AbstractUser
 from django.http.request import HttpRequest
@@ -89,3 +90,16 @@ def get_current_username() -> str:
     """
     current_user = get_current_authenticated_user()
     return current_user.username if current_user else ''
+
+
+# official pattern to extend log records: https://docs.python.org/3/library/logging.html#logging.LogRecord
+__old_log_record_factory = logging.getLogRecordFactory()
+
+
+def record_with_username_factory(*args, **kwargs):
+    record = __old_log_record_factory(*args, **kwargs)
+    record.username = get_current_username()
+    return record
+
+
+logging.setLogRecordFactory(record_with_username_factory)

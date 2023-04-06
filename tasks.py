@@ -38,7 +38,7 @@ def django_q_pre_execute_callback(sender, func, task, **kwargs):
     If turned on, requires clearing the global attribute after each task execution (use current_task_info decorator).
     """
     _, _, _ = sender, func, kwargs
-    if settings.CURRENT_TASK_INFO_TRACKING:
+    if getattr(settings, 'CURRENT_TASK_INFO_TRACKING', None):
         existing_task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
         if existing_task_info:
             raise RuntimeError(
@@ -71,3 +71,17 @@ def current_task_info(_func: callable = None):
         return decorator
     else:
         return decorator(_func)
+
+
+# official pattern to extend log records: https://docs.python.org/3/library/logging.html#logging.LogRecord
+__old_log_record_factory = logging.getLogRecordFactory()
+
+
+def record_with_task_id_factory(*args, **kwargs):
+    record = __old_log_record_factory(*args, **kwargs)
+    task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
+    record.task_id = task_info['id'] if task_info else None
+    return record
+
+
+logging.setLogRecordFactory(record_with_task_id_factory)
