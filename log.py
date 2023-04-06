@@ -14,17 +14,17 @@ settings.LOGGING = {
     },
     'handlers': {
         'console': { 'class': 'logging.StreamHandler', 'formatter': 'default', },
-        'db_log': { 'level': 'DEBUG', 'class': 'helpers.log.DatabaseLogHandler' },
+        'database': { 'level': 'DEBUG', 'class': 'helpers.log.DatabaseLogHandler' },
         'django.server': DEFAULT_LOGGING['handlers']['django.server'],
     },
     'loggers': {
         '': {  # default for all undefined Python modules
             'level': 'INFO',
-            'handlers': ['console', 'db_log'],
+            'handlers': ['console', 'database'],
         },
-        'helpers': {
-            'level': 'INFO',
-            'handlers': ['console', 'db_log'],
+        'django.request': {  # logging 500 errors to database
+            'handlers': ['database'],
+            'level': 'ERROR',
             'propagate': False,  # avoid double logging because of root logger
         },
         'django.server': DEFAULT_LOGGING['loggers']['django.server'],  # default runserver request logging

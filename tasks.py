@@ -80,7 +80,7 @@ __old_log_record_factory = logging.getLogRecordFactory()
 def record_with_task_id_factory(*args, **kwargs):
     record = __old_log_record_factory(*args, **kwargs)
     task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
-    record.task_id = task_info['id'] if task_info else None
+    record.task_id = task_info['id'] if task_info else ''
     return record
 
 

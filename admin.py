@@ -21,25 +21,25 @@ class TaskHandleAdmin(admin.ModelAdmin):
 
 @admin.register(LogEntry)
 class LogEntryAdmin(admin.ModelAdmin):
-    list_display = ('colored_msg', 'traceback', 'created_at_format')
-    list_display_links = ('colored_msg', )
+    list_display = ('colored_description', )
+    list_display_links = ('colored_description', )
     list_filter = ('level', )
     list_per_page = DB_LOG_ENTRY_ADMIN_LIST_PER_PAGE
 
-    def colored_msg(self, instance):
+    def colored_description(self, instance):
         if instance.level in [logging.NOTSET, logging.INFO]:
             color = 'green'
         elif instance.level in [logging.WARNING, logging.DEBUG]:
             color = 'orange'
         else:
             color = 'red'
-        return format_html('<span style="color: {color};">{msg}</span>', color=color, msg=instance.msg)
-    colored_msg.short_description = 'Message'
+        return format_html(
+            '<span style="color: {color};">{msg}</span>',
+            color=color,
+            msg=f'{instance.created_at.astimezone().strftime("%Y-%m-%d %X")} {instance.name} — {instance.msg}'
+        )
+    colored_description.short_description = 'Message with info'
 
     @staticmethod
     def traceback(instance):
         return format_html('<pre><code>{content}</code></pre>', content=instance.trace if instance.trace else '')
-
-    def created_at_format(self, instance):
-        return instance.created_at.strftime('%Y-%m-%d %X')
-    created_at_format.short_description = 'Created at'

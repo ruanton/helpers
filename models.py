@@ -59,14 +59,14 @@ class LogEntry(models.Model):
     trace = models.TextField(blank=True)
     task_id = models.CharField('Task ID', max_length=32, blank=True, editable=False)
     username = models.CharField(max_length=150, blank=True, editable=False)
-    created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False, help_text='db record created at')
+    created_at = models.DateTimeField('Created at', auto_now_add=True, help_text='db record created at')
 
     def __str__(self):
         return self.msg
 
     class Meta:
-        ordering = ('-created_at',)
-        verbose_name_plural = verbose_name = 'Logging'
+        ordering = ('-created_at', )
+        verbose_name_plural = 'Log entries'
 
         indexes = [
             models.Index(fields=['level', '-created_at'], name='idx_log_entry_level'),
