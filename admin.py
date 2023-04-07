@@ -6,7 +6,7 @@ from django.utils.html import format_html
 from .models import SemaphoreRecord, TaskHandle, LogEntry
 
 
-DB_LOG_ENTRY_ADMIN_LIST_PER_PAGE = 30
+DB_LOG_ENTRY_ADMIN_LIST_PER_PAGE = 200
 
 
 @admin.register(SemaphoreRecord)

@@ -58,6 +58,20 @@ def current_task_info(_func: callable = None):
         def wrapper(*args, **kwargs):
             task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
             try:
+                # save ID of Django-Q ORM queue item
+                if 'ack_id' in task_info:
+                    ormq_id = task_info['ack_id']
+                    task_handle = TaskHandle.objects.filter(task_id=task_info['id']).first()
+                    if not task_handle:
+                        log.warning(f'TaskHandle with ID="{task_info["id"]}" not found')
+                    elif (task_handle.ormq_id or '') != ormq_id:
+                        if task_handle.ormq_id:
+                            log.warning(f'ormq_id already set to: "{task_handle.ormq_id}", changing to "{ormq_id}"')
+                        task_handle.ormq_id = ormq_id
+                        task_handle.save()
+                else:
+                    log.warning('no "ack_id" attribute in task info dictionary')
+
                 return func(*args, **kwargs, task=task_info)
             finally:
                 actual_task_info = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
