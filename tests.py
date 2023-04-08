@@ -84,21 +84,21 @@ class HelpersTests(TransactionTestCase):
         s.release()
 
         s = semaphore_wait(key='test', sem_timeout=5)
-        now = local_now_tz_aware()
         self.assertRaises(SemaphoreLockedException, lambda: semaphore_wait('test', wait_timeout=0.5))
         s.release()
 
         s1 = semaphore_wait(key='test', sem_timeout=3.5)
         callback_num = 0
+
         def sem_callback(ex):
             nonlocal callback_num
             print(f'ex: {ex}')
             callback_num += 1
+
         s2 = semaphore_wait(key='test', callback=sem_callback, cb_delay=1, retry_delay=0.1)
         self.assertEqual(callback_num, 4)
         s1.release()
         s2.release()
-
 
     def test_misc(self):
         blocks = list(iter_blocks(list(range(25)), 10))
