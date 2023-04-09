@@ -11,7 +11,7 @@ from selenium.webdriver.chrome.webdriver import DEFAULT_PORT
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
-from selenium.common.exceptions import WebDriverException, StaleElementReferenceException
+from selenium.common.exceptions import WebDriverException, StaleElementReferenceException, TimeoutException
 from selenium.webdriver.remote.webelement import WebElement
 
 
@@ -242,7 +242,10 @@ def wait_for_no_element(element, by: By, value: str, timeout: float = DEFAULT_TI
 
     driver = getattr(element, 'parent', element)
     wait = WebDriverWait(driver, timeout)
-    wait.until(lambda x: not element.find_elements(by, value))
+    try:
+        wait.until(lambda x: not element.find_elements(by, value))
+    except TimeoutException:
+        raise
 
 
 def wait_for_different_url(driver, url: str, timeout: float = DEFAULT_TIMEOUT):
