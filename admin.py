@@ -16,7 +16,29 @@ class SemaphoreRecordAdmin(admin.ModelAdmin):
 
 @admin.register(TaskHandle)
 class TaskHandleAdmin(admin.ModelAdmin):
-    list_display = ['id', 'task_id', 'ormq_id', 'cancel_requested', 'created_at', 'updated_at']
+    list_display = [
+        'id', 'task_id', 'ormq_id', '_prev', '_next', '_try', 'cancel_requested', '_created', '_updated'
+    ]
+
+    @admin.display(description='Prev')
+    def _prev(self, obj):
+        return obj.prev_id
+
+    @admin.display(description='Next')
+    def _next(self, obj):
+        return obj.next_id
+
+    @admin.display(description='Try')
+    def _try(self, obj):
+        return obj.try_num
+
+    @admin.display(description='Created at')
+    def _created(self, obj):
+        return f'{obj.created_at.astimezone():%Y-%m-%d %X}'
+
+    @admin.display(description='Updates at')
+    def _updated(self, obj):
+        return f'{obj.updated_at.astimezone():%Y-%m-%d %X}'
 
 
 @admin.register(LogEntry)
