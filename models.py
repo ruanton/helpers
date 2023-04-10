@@ -21,6 +21,16 @@ class TaskHandle(models.Model):
         help_text='Django-Q ORM message broker record ID'
     )
     cancel_requested = models.BooleanField('Cancel', default=False, help_text='task cancellation requested')
+    prev = models.ForeignKey(
+        to='self', on_delete=models.CASCADE, related_name='next_handle', null=True, blank=True, editable=False,
+        help_text='handle of the previous task try'
+    )
+    next = models.ForeignKey(
+        to='self', on_delete=models.CASCADE, related_name='prev_handle', null=True, blank=True, editable=False,
+        help_text='handle of the next task try'
+    )
+    max_tries = models.IntegerField(default=1, help_text='max number of tries', editable=False)
+    try_num = models.IntegerField(default=1, help_text='try number', editable=False)
     created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False, help_text='db record created at')
     updated_at = models.DateTimeField('Updated at', auto_now=True, editable=False, help_text='db record updated at')
 
