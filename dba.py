@@ -1,5 +1,5 @@
 import logging
-from sqlalchemy import create_engine, Column, DateTime, Integer, String, Text
+from sqlalchemy import create_engine, Column, DateTime, Integer, String, Text, BigInteger
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import scoped_session, sessionmaker
 from django.conf import settings
@@ -13,7 +13,7 @@ Base = declarative_base()
 class LogEntry(Base):
     __tablename__ = 'helpers_logentry'
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
+    id = Column(BigInteger, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False)
     level = Column(Integer, nullable=False, default=logging.ERROR)
     msg = Column(Text, nullable=False)
