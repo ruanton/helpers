@@ -48,8 +48,8 @@ def derive_sa_connection_string() -> str:
     elif db_settings['ENGINE'] == 'django.db.backends.postgresql_psycopg2':
         user = db_settings['USER']
         password = db_settings['PASSWORD']
-        host = db_settings['HOST'] if 'HOST' in db_settings else 'localhost'
-        port = f':{db_settings["PORT"]}' if 'PORT' in db_settings else ''
+        host = (db_settings['HOST'] if 'HOST' in db_settings else None) or 'localhost'
+        port = f':{db_settings["PORT"]}' if 'PORT' in db_settings and db_settings["PORT"] else ''
         name = db_settings['NAME']
         sql_alchemy_connection = f'postgresql+psycopg2://{user}:{password}@{host}{port}/{name}'
 
