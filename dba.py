@@ -51,7 +51,7 @@ def derive_sa_connection_string() -> str:
         host = db_settings['HOST'] if 'HOST' in db_settings else 'localhost'
         port = f':{db_settings["PORT"]}' if 'PORT' in db_settings else ''
         name = db_settings['NAME']
-        sql_alchemy_connection = f'postgresql+psycopg2://{user}:{password}@{host}{port}:/{name}'
+        sql_alchemy_connection = f'postgresql+psycopg2://{user}:{password}@{host}{port}/{name}'
 
     else:
         # to extend: https://docs.sqlalchemy.org/en/20/core/engines.html
