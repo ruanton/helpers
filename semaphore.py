@@ -14,10 +14,10 @@ from .models import SemaphoreRecord
 
 log = logging.getLogger(__name__)
 
-SEMAPHORE_LOCK_TIMEOUT_DEFAULT = 300.0;     'default semaphore lock timeout, in seconds'
-SEMAPHORE_WAIT_TIMEOUT_DEFAULT = 300.0;     'default timeout waiting for semaphore lock'
-SEMAPHORE_CALLBACK_DELAY_DEFAULT = 30;      'default delay between callbacks while waiting for semaphore'
-SEMAPHORE_RETRIES_DELAY_DEFAULT = 0.3;      'default delay between retries to acquire a semaphore lock'
+SEMAPHORE_LOCK_TIMEOUT_DEFAULT = 300.0;     """default semaphore lock timeout, in seconds"""
+SEMAPHORE_WAIT_TIMEOUT_DEFAULT = 300.0;     """default timeout waiting for semaphore lock"""
+SEMAPHORE_CALLBACK_DELAY_DEFAULT = 30;      """default delay between callbacks while waiting for semaphore"""
+SEMAPHORE_RETRIES_DELAY_DEFAULT = 0.3;      """default delay between retries to acquire a semaphore lock"""
 
 
 class SemaphoreLockedException(RuntimeError):

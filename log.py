@@ -36,7 +36,7 @@ settings.LOGGING = {
 class DatabaseLogHandler(logging.Handler):
     def emit(self, record):
         from .dba import Session, LogEntry
-        with Session() as s:
+        with Session.begin() as s:
             s.add(LogEntry(
                 name=record.name,
                 level=record.levelno,
@@ -45,17 +45,6 @@ class DatabaseLogHandler(logging.Handler):
                 task_id=getattr(record, 'task_id', ''),
                 username=getattr(record, 'username', ''),
             ))
-            s.commit()
-
-        # from .models import LogEntry
-        # LogEntry.objects.create(
-        #     name=record.name,
-        #     level=record.levelno,
-        #     msg=self.format(record) if DB_LOGGER_ENABLE_FORMATTER else record.getMessage(),
-        #     trace=_default_formatter.formatException(record.exc_info) if record.exc_info else '',
-        #     task_id=getattr(record, 'task_id', ''),
-        #     username=getattr(record, 'username', ''),
-        # )
 
     def format(self, record):
         fmt = self.formatter if self.formatter else _default_formatter

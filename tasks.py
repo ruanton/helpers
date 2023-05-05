@@ -36,7 +36,7 @@ class TaskInfo:
             while handle:
                 # verify consistency
                 if handle.prev:
-                    if  handle.try_num != handle.prev.try_num + 1:
+                    if handle.try_num != handle.prev.try_num + 1:
                         log.warning(f'inconsistent try number for task handle {handle.id}: {handle.try_num}')
                     if handle.max_tries != handle.prev.max_tries:
                         log.warning(f'inconsistent max_tries for task handle {handle.id}: {handle.max_tries}')

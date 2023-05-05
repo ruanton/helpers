@@ -1,27 +1,26 @@
-#
-# Modified copy of django-currentuser - https://github.com/PaesslerAG/django-currentuser
-#
-#  Add it to the middleware classes in your settings.py:
-#      MIDDLEWARE = (
-#          ...,
-#          'helpers.current_request.ThreadCurrentRequestMiddleware',
-#      )
-#
-#
+"""
+Modified copy of django-currentuser - https://github.com/PaesslerAG/django-currentuser
+
+Add it to the middleware classes in your settings.py:
+    MIDDLEWARE = (
+        ...,
+        'helpers.current_request.ThreadCurrentRequestMiddleware',
+    )
+"""
 
 import logging
+import threading
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser, AbstractUser
 from django.http.request import HttpRequest
-from threading import local
 
 CURRENT_REQUEST_ATTR_NAME = getattr(settings, 'CURRENT_REQUEST_ATTR_NAME', '_current_request')
 
-_thread_locals = local()
+_thread_locals = threading.local()
 
 
 def _do_set_current_request(request_func):
-    setattr(_thread_locals, CURRENT_REQUEST_ATTR_NAME, request_func.__get__(request_func, local))
+    setattr(_thread_locals, CURRENT_REQUEST_ATTR_NAME, request_func.__get__(request_func, threading.local))
 
 
 def _set_current_request(request: HttpRequest = None):

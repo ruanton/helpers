@@ -14,10 +14,12 @@ def strip_time(dt: datetime.datetime) -> datetime.datetime:
 
 
 def local_now_tz_aware():
+    """Returns global current date/time in local representation with time zone"""
     return datetime.datetime.now(pytz.utc).astimezone()
 
 
 def local_midnight_tz_aware() -> datetime.datetime:
+    """Returns date/time of midnight in current location with time zone"""
     now = local_now_tz_aware()
     return strip_time(now)
 
