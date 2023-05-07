@@ -5,6 +5,7 @@ Exposes: Session factory object and Mirror for some Django objects.
 
 import datetime
 import logging
+from typing import Any, Type
 from sqlalchemy import create_engine, DateTime, Integer, String, Text, BigInteger
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
 from django.conf import settings
@@ -12,6 +13,11 @@ from django.conf import settings
 # local imports
 from .dateutils import local_now_tz_aware
 from .models import LogEntry as DjangoOrmLogEntry
+from .misc import jsonpickle_dumps
+
+ATTRIBUTE_NAME_DEBUG_INFO = 'debug_info';  """Default entity's attribute for saving debug info"""
+
+log = logging.getLogger(__name__)
 
 
 class Base(DeclarativeBase):
@@ -70,3 +76,26 @@ SqlAlchemy Session objects creator, bound to configured database connection.
 Can use shortcut "with Session.begin() as session:" equivalent to "with Session() as session, session.begin():".
 This creates/closes Session object and begins/commits transaction.
 """
+
+
+async def save_debug_info(
+        entity: Type[DeclarativeBase],
+        ident: Any | tuple[Any, ...],
+        info: Any,
+        attr_name: str = ATTRIBUTE_NAME_DEBUG_INFO
+) -> None:
+    """
+    Saves json-pickled info into certain attribute of the given database entity.
+
+    @param entity: entity class to save debug info to
+    @param ident: key of entity
+    @param info: debug info to save
+    @param attr_name: attribute name of entity to save to
+    """
+    with Session.begin() as s:
+        obj = s.get(entity, ident)
+        if not obj:
+            log.warning(f'entity "{entity.__class__}" with ident "{ident}" not found')
+            return
+        json_info = jsonpickle_dumps(info)
+        setattr(obj, attr_name, json_info)

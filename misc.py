@@ -11,6 +11,8 @@ import logging
 import typing
 import functools
 import csv
+import jsonpickle
+from typing import Any
 from collections.abc import Iterable, Callable
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError, MaxRetryError, NewConnectionError
@@ -29,6 +31,13 @@ def json_dumps(obj) -> str:
 
 def json_loads(data: str):
     return simplejson.loads(data, use_decimal=True)
+
+
+def jsonpickle_dumps(self) -> str:
+    jsonpickle.set_encoder_options('simplejson', use_decimal=True, sort_keys=True, ensure_ascii=False, indent=4)
+    jsonpickle.set_preferred_backend('simplejson')
+    json_str = jsonpickle.dumps(self, use_decimal=True)
+    return json_str
 
 
 def get_download_path() -> str:
@@ -285,3 +294,76 @@ RUSSIAN_ADDRESSES = {
     'Станция': 'ст',
     'Хутор': 'х',
 }
+
+
+MAX_WIDTH_COMPACTED_VALUE = 120;  """Compaction is not performed if resulting string exceeds this size"""
+
+
+def _compact_pickled_data(data: Any, remove_special: bool = True, remove_protected: bool = False) -> Any:
+    """
+    Compacts pickled data for simple visual representations.
+    @param data: dict or list to compact
+    @param remove_special: remove items with jsonpickle special keys
+    @param remove_protected: remove items with keys starting with '_'
+    @return: compacted and filtered data
+    """
+
+    def _value_is_empty(_val: Any) -> bool:
+        return _val is None or _val in ('', 'none', 'null',) or _val == [] or _val == {}
+
+    if isinstance(data, list):
+        # compact every element of the list and remove empty elements
+        data = [
+            _compact_pickled_data(x, remove_special=remove_special, remove_protected=remove_protected)
+            for x in data
+        ]
+        data = [x for x in data if not _value_is_empty(x)]
+
+    if isinstance(data, list) and len(data) == 1:
+        # convert list to single value
+        return data[0]
+
+    if isinstance(data, list) and len(data) <= 8 and all(not isinstance(x, dict | list) for x in data):
+        # convert list to comma delimited string if short enough
+        compacted = ', '.join([str(x) for x in data])
+        return compacted if len(compacted) < MAX_WIDTH_COMPACTED_VALUE else data
+
+    if isinstance(data, dict):
+        # compact every element of the dictionary and remove elements with empty or special/protected values
+        compacted = {}
+        for key, value in data.items():
+            value = _compact_pickled_data(value, remove_special=remove_special, remove_protected=remove_protected)
+            if _value_is_empty(value):
+                continue
+            if remove_protected and key.startswith('_'):
+                continue
+            if remove_special and key in ('py/object', 'py/function', 'py/type',):
+                continue
+            compacted[key] = value
+        data = compacted
+
+    if isinstance(data, dict) and len(data) == 1:
+        # collapse dict with inner dict if latter has single element
+        key, val = list(data.items())[0]
+        if isinstance(val, dict) and len(val) == 1:
+            key_inner, val_inner = list(val.items())[0]
+            data = {f'{key}=>{key_inner}': val_inner}
+
+    if isinstance(data, dict) and len(data) <= 8 and all(not isinstance(x, dict | list) for x in data.values()):
+        # convert list to comma delimited string with key=value pairs if short enough
+        tokens = []
+        for key, val in data.items():
+            tokens.append(f'{key}={val}')
+        compacted = ', '.join(tokens)
+        return compacted if len(compacted) < MAX_WIDTH_COMPACTED_VALUE else data
+
+    return data if not _value_is_empty(data) else None
+
+
+def compact_debug_info(info: str, remove_protected: bool = False) -> str:
+    """Compact and filter json pickled object for simplified visual representation"""
+    if not info:
+        return ''
+    data = json_loads(info)
+    compacted = _compact_pickled_data(data, remove_protected=remove_protected)
+    return json_dumps(compacted)
