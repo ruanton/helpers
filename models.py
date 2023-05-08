@@ -1,6 +1,7 @@
 import logging
 from typing import Optional
 from django.db import models
+from django.utils.html import format_html
 
 
 class SemaphoreRecord(models.Model):
@@ -73,6 +74,26 @@ class LogEntry(models.Model):
 
     def __str__(self):
         return self.msg
+
+    def colored_description(self):
+        if self.level in [logging.NOTSET, logging.INFO]:
+            color = 'green'
+        elif self.level in [logging.WARNING, logging.DEBUG]:
+            color = 'orange'
+        else:
+            color = 'red'
+        return format_html(
+            '<span style="color: {color};">{msg}</span>',
+            color=color,
+            msg=f'{self.created_at.astimezone().strftime("%Y-%m-%d %X")} {self.name} — {self.msg}'
+        )
+    colored_description.short_description = 'Message with info'
+
+    def traceback(self):
+        return format_html('<pre><code>{content}</code></pre>', content=self.trace if self.trace else '')
+
+    def level_name(self):
+        return logging.getLevelName(self.level)
 
     class Meta:
         ordering = ('-created_at', )
