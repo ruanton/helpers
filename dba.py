@@ -35,7 +35,7 @@ class LogEntry(Base):
     task_id: Mapped[str] = mapped_column(String(12), nullable=False)
     username: Mapped[str] = mapped_column(String(150), nullable=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=local_now_tz_aware()
+        DateTime(timezone=True), nullable=False, default=local_now_tz_aware
     )
 
     def __repr__(self):
