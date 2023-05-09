@@ -13,6 +13,10 @@ def strip_time(dt: datetime.datetime) -> datetime.datetime:
     return dt.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
+def strip_seconds(dt: datetime.datetime) -> datetime.datetime:
+    return dt.replace(second=0, microsecond=0)
+
+
 def local_now_tz_aware():
     """Returns global current date/time in local representation with time zone"""
     return datetime.datetime.now(pytz.utc).astimezone()
