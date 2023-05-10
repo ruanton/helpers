@@ -4,6 +4,21 @@ from django.db import models
 from django.utils.html import format_html
 
 
+class DeferManager(models.Manager):
+    """
+    Defers database loading from certain fields.
+
+    Usage in Models classes:
+        objects = DeferManager('field_name', ...)
+    """
+    def __init__(self, *fields: str):
+        super(DeferManager, self).__init__()
+        self.fields_to_defer = fields
+
+    def get_queryset(self):
+        return super(DeferManager, self).get_queryset().defer(*self.fields_to_defer)
+
+
 class SemaphoreRecord(models.Model):
     key = models.CharField(max_length=512, primary_key=True, editable=False,  help_text='semaphore unique name')
     timeout = models.FloatField(help_text='interval in seconds after which the semaphore is considered open')
