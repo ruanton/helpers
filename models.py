@@ -31,22 +31,34 @@ class SemaphoreRecord(models.Model):
 
 
 class TaskHandle(models.Model):
-    task_id = models.CharField('Task ID', max_length=32, editable=False)
+    task_id = models.CharField('Task ID', max_length=32, editable=False);  """Django-Q task unique ID."""
     ormq_id = models.IntegerField(
         'OrmQ ID', null=True, blank=True, editable=False,
         help_text='Django-Q ORM message broker record ID'
     )
+    """Unique ID of the record in Django-Q ormq table."""
+
     cancel_requested = models.BooleanField('Cancel', default=False, help_text='task cancellation requested')
+    """Running tasks supposed to check this flag and gratefully terminate as soon as possible."""
+
     prev = models.ForeignKey(
         to='self', on_delete=models.CASCADE, related_name='next_handle', null=True, blank=True, editable=False,
         help_text='handle of the previous task try'
     )
+    """Task Handle of the previous task try if it was failed."""
+
     next = models.ForeignKey(
         to='self', on_delete=models.CASCADE, related_name='prev_handle', null=True, blank=True, editable=False,
         help_text='handle of the next task try'
     )
+    """Task Handle of the next task try. Created in case of failure of this task."""
+
     max_tries = models.IntegerField(default=1, help_text='max number of tries', editable=False)
+    """Set to identical value for all Task Handles in the retry chain."""
+
     try_num = models.IntegerField(default=1, help_text='try number', editable=False)
+    """Try number in the retrying chain. Counts from 1."""
+
     created_at = models.DateTimeField('Created at', auto_now_add=True, editable=False, help_text='db record created at')
     updated_at = models.DateTimeField('Updated at', auto_now=True, editable=False, help_text='db record updated at')
 
@@ -55,6 +67,7 @@ class TaskHandle(models.Model):
 
     @classmethod
     def get(cls, handle_or_task_id: int | str) -> Optional['TaskHandle']:
+        """Get Task Handle by ID or task_id. Returns None if not found."""
         if TaskHandle.objects.filter(id=handle_or_task_id).exists():
             return TaskHandle.objects.get(id=handle_or_task_id)
         elif TaskHandle.objects.filter(task_id=handle_or_task_id).exists():

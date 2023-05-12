@@ -278,7 +278,7 @@ def locate_element(element, xpath_or_id: str, error_message: str = None) -> WebE
         els = element.find_elements(By.ID, xpath_or_id)
 
     if error_message:
-        error_message = error_message + ' - '
+        error_message += ' - '
     if not els:
         raise RuntimeError(f'{error_message}cannot locate elements with xpath or id "{xpath_or_id}"')
     if len(els) > 1:

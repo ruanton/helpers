@@ -1,5 +1,6 @@
 import functools
 import logging
+import threading
 from django.db import transaction
 from django.dispatch import receiver
 from django.conf import settings
@@ -11,17 +12,23 @@ from .models import TaskHandle
 
 log = logging.getLogger(__name__)
 
+_thread_locals = threading.local()
+CURRENT_TASK_INFO_ATTR_NAME = '__current_task_info'
+"""Attribute name for saving Task Info of the current Django-Q task into _thead_locals."""
+
 
 class TaskInfo:
+    """Information of the running Django-Q task."""
     def __init__(self, task_dict: dict):
-        self.task_dict: dict = task_dict
-        self.handle = TaskHandle.objects.get(task_id=task_dict['id'])
-        self._history: list[TaskHandle] = []
+        self.task_dict: dict = task_dict;  """Dictionary passed to Django-Q pre_execute callback handler."""
+        self.handle = TaskHandle.objects.get(task_id=task_dict['id']);  """Task Handle"""
+        self._history: list[TaskHandle] = [];  """List of Task Handles of the retry chain."""
 
         # save ID of Django-Q ORM queue item
         ormq_id = task_dict['ack_id'] if 'ack_id' in task_dict else None
         if ormq_id:
             if (self.handle.ormq_id or '') != ormq_id:
+                """If OrmQ ID not in database yet, save it."""
                 if self.handle.ormq_id:
                     log.warning(f'ormq_id already set to: "{self.handle.ormq_id}", changing to "{ormq_id}"')
                 self.handle.ormq_id = ormq_id
@@ -31,16 +38,20 @@ class TaskInfo:
 
     @property
     def history(self) -> list[TaskHandle]:
+        """Task Handles of the retry chain, reversed. Cached on the first request."""
         if not self._history:
             handle = self.handle
             while handle:
                 # verify consistency
                 if handle.prev:
                     if handle.try_num != handle.prev.try_num + 1:
+                        # try_num's for Task Handles in the retry chain must follow each other
                         log.warning(f'inconsistent try number for task handle {handle.id}: {handle.try_num}')
                     if handle.max_tries != handle.prev.max_tries:
+                        # all max_tries of Task Handles of the retry chain must be identical
                         log.warning(f'inconsistent max_tries for task handle {handle.id}: {handle.max_tries}')
                 elif handle.try_num != 1:
+                    # try_num of the first Task Handle must be set to 1
                     log.warning(f'inconsistent try number for task handle {handle.id}: {handle.try_num}')
 
                 self._history.append(handle)
@@ -50,16 +61,18 @@ class TaskInfo:
 
     @property
     def cancel_requested(self) -> bool:
+        """Returns True if task cancellation is requested through any of the Task Handles of the retry chain."""
         return any(x.cancel_requested for x in self.history)
 
     @property
     def is_last_try(self) -> bool:
+        """Returns True if this task is the last try according to given max_tries."""
         return self.handle.try_num >= self.handle.max_tries
 
 
 def async_task_with_handle(func, *args, prev: TaskHandle = None, tries: int = None, **kwargs) -> TaskHandle:
     """
-    Creates asynchronous task for executing by Django Q cluster by calling async_task.
+    Creates asynchronous task for executing by Django-Q cluster, by calling async_task.
     Additionally, creates database record with handle to control this task and it's retries.
     @param func: the task function
     @param prev: task handle of the previous try
@@ -71,33 +84,35 @@ def async_task_with_handle(func, *args, prev: TaskHandle = None, tries: int = No
     if prev and tries:
         raise ValueError('prev and tries cannot be given simultaneously')
     if not tries and not prev:
+        # by default only one try is requested
         tries = 1
 
     with transaction.atomic():
-        task_id = async_task(func, *args, **kwargs)
+        task_id = async_task(func, *args, **kwargs)  # queue Django-Q task for execution
         if tries:
-            task_handle = TaskHandle(task_id=task_id, max_tries=tries)
+            # this is the first try of the task
+            task_handle = TaskHandle(task_id=task_id, max_tries=tries)  # create Task Handle database record
             task_handle.save()
         else:
+            # this is the following try of the (failed) task
             task_handle = TaskHandle(task_id=task_id, prev=prev, max_tries=prev.max_tries, try_num=prev.try_num + 1)
-            prev.next = task_handle
+            prev.next = task_handle  # chain created Task Handle to the previous tries list
             task_handle.save()
             prev.save()
         return task_handle
 
 
-CURRENT_TASK_INFO_ATTR_NAME = '__current_task_info'
-
-
 @receiver(pre_execute)
 def django_q_pre_execute_callback(sender, func, task, **kwargs):
     """
-    Saves task info globally. Turned on by settings.CURRENT_TASK_INFO_TRACKING = True.
+    Saves task info globally.
+    Turned on by settings.CURRENT_TASK_INFO_TRACKING = True.
     If turned on, requires clearing the global attribute after each task execution (use current_task_info decorator).
+    Supposed that only on Django-Q task can be run on any particular thread.
     """
-    _, _, _ = sender, func, kwargs
+    _, _, _ = sender, func, kwargs  # suppress PyCharm warning about unused params
     if getattr(settings, 'CURRENT_TASK_INFO_TRACKING', None):
-        existing_task_info: TaskInfo = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
+        existing_task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, None)
         if existing_task_info:
             raise RuntimeError(
                 f'{CURRENT_TASK_INFO_ATTR_NAME} already set to "... task_id={existing_task_info.handle.task_id} ...", '
@@ -105,7 +120,7 @@ def django_q_pre_execute_callback(sender, func, task, **kwargs):
             )
         log.debug(f'pre_execute: task_id={task["id"]}')
         task_info = TaskInfo(task_dict=task)
-        setattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, task_info)  # save the task info globally
+        setattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, task_info)  # save the task info globally
 
 
 def current_task_info(_func: callable = None):
@@ -115,15 +130,15 @@ def current_task_info(_func: callable = None):
     def decorator(func: callable):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-            task_info: TaskInfo = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
+            task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
             try:
                 return func(*args, **kwargs, task_info=task_info)
             finally:
-                actual_task_info: TaskInfo = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
+                actual_task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
                 if actual_task_info != task_info:
                     raise RuntimeError(
                         f'incorrect task id: {actual_task_info.handle.task_id}, expected: {task_info.handle.task_id}')
-                delattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME)
+                delattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
 
         return wrapper
 
@@ -139,7 +154,7 @@ __old_log_record_factory = logging.getLogRecordFactory()
 
 def record_with_task_id_factory(*args, **kwargs):
     record = __old_log_record_factory(*args, **kwargs)
-    task_info: TaskInfo = getattr(django_q_pre_execute_callback, CURRENT_TASK_INFO_ATTR_NAME, None)
+    task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, None)
     record.task_id = task_info.handle.task_id if task_info else ''
     return record
 
