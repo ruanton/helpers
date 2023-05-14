@@ -18,7 +18,7 @@ CURRENT_TASK_INFO_ATTR_NAME = '__current_task_info'
 
 
 class TaskInfo:
-    """Information of the running Django-Q task."""
+    """Information of the currently running Django-Q task."""
     def __init__(self, task_dict: dict):
         self.task_dict: dict = task_dict;  """Dictionary passed to Django-Q pre_execute callback handler."""
         self.handle = TaskHandle.objects.get(task_id=task_dict['id']);  """Task Handle"""
@@ -35,6 +35,12 @@ class TaskInfo:
                 self.handle.save()
         else:
             log.warning('no "ack_id" attribute in task info dictionary')
+
+    def __str__(self):
+        handle_id = self.handle.id
+        task_id = self.handle.task_id
+        ormq_id = self.handle.ormq_id or 'unknown'
+        return f'handle_id={handle_id}, task_id={task_id}, ormq_id={ormq_id}'
 
     @property
     def history(self) -> list[TaskHandle]:
@@ -105,10 +111,10 @@ def async_task_with_handle(func, *args, prev: TaskHandle = None, tries: int = No
 @receiver(pre_execute)
 def django_q_pre_execute_callback(sender, func, task, **kwargs):
     """
-    Saves task info globally.
+    Saves task info globally (in the current thread).
     Turned on by settings.CURRENT_TASK_INFO_TRACKING = True.
-    If turned on, requires clearing the global attribute after each task execution (use current_task_info decorator).
-    Supposed that only on Django-Q task can be run on any particular thread.
+    If turned on, requires clearing the global attribute after each task execution (use '@managed_task' decorator).
+    Supposed that only one Django-Q task can be run on any particular thread.
     """
     _, _, _ = sender, func, kwargs  # suppress PyCharm warning about unused params
     if getattr(settings, 'CURRENT_TASK_INFO_TRACKING', None):
@@ -116,22 +122,46 @@ def django_q_pre_execute_callback(sender, func, task, **kwargs):
         if existing_task_info:
             raise RuntimeError(
                 f'{CURRENT_TASK_INFO_ATTR_NAME} already set to "... task_id={existing_task_info.handle.task_id} ...", '
-                f'forgot to use "current_task_info" decorator?'
+                f'forgot to use "@managed_task" decorator?'
             )
-        log.debug(f'pre_execute: task_id={task["id"]}')
+        log.info(f'pre_execute: task_id={task["id"]}')
         task_info = TaskInfo(task_dict=task)
         setattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, task_info)  # save the task info globally
 
 
-def current_task_info(_func: callable = None):
+def managed_task(_func: callable = None):
     """
-    This decorator gives task info to function and clears the task info global attribute on exit. Must be outermost.
+    This decorator turns a task function to a managed Django-Q task:
+       • gives TaskInfo to this function as task_info additional attribute;
+       • clears the task_info global (in the current thread) attribute on exit;
+       • automatically manages required task retries;
+       • automatically skips task execution if next task try is already queued;
+       • automatically skips task execution if task cancellation is requested;
+
+    Supposed that such Django-Q async tasks always created with 'async_task_with_handle' function
+    for TaskHandle DB record to be created.
+
+    Requires settings.CURRENT_TASK_INFO_ATTR_NAME set to True.
+
+    Must be outermost decorator.
     """
     def decorator(func: callable):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            # retrieve current task information, previously saved via pre_execute Django-Q handler
             task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
+            if not task_info:
+                raise RuntimeError('no task_info, forgot to to set settings.CURRENT_TASK_INFO_TRACKING=True?')
+
             try:
+                if task_info.handle.next:
+                    log.warning(f'next task already queued: {task_info.handle.next.task_id}, terminating')
+                    return 'the next task try is already queued, skipping'
+                if task_info.cancel_requested:
+                    log.info('task cancellation requested, terminating')
+                    return 'task cancellation is requested, skipping task execution'
+
+                log.info(f'running task: {task_info}')
                 return func(*args, **kwargs, task_info=task_info)
             finally:
                 actual_task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
@@ -153,6 +183,7 @@ __old_log_record_factory = logging.getLogRecordFactory()
 
 
 def record_with_task_id_factory(*args, **kwargs):
+    """Adds task_id attribute to log every record. If no task_id - empty string."""
     record = __old_log_record_factory(*args, **kwargs)
     task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, None)
     record.task_id = task_info.handle.task_id if task_info else ''
