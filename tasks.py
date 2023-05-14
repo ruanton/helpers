@@ -20,21 +20,31 @@ CURRENT_TASK_INFO_ATTR_NAME = '__current_task_info'
 class TaskInfo:
     """Information of the currently running Django-Q task."""
     def __init__(self, task_dict: dict):
-        self.task_dict: dict = task_dict;  """Dictionary passed to Django-Q pre_execute callback handler."""
-        self.handle = TaskHandle.objects.get(task_id=task_dict['id']);  """Task Handle"""
-        self._history: list[TaskHandle] = [];  """List of Task Handles of the retry chain."""
+        # retrieve task handle record from the database
+        task_id = task_dict['id']
+        try:
+            task_handle = TaskHandle.objects.get(task_id=task_id)
+        except TaskHandle.DoesNotExist:
+            raise RuntimeError(
+                f'TaskHandle record with task_id={task_id} does not exists, '
+                f'forgot to always use "async_task_with_handle()" to queue task?'
+            )
 
         # save ID of Django-Q ORM queue item
         ormq_id = task_dict['ack_id'] if 'ack_id' in task_dict else None
         if ormq_id:
-            if (self.handle.ormq_id or '') != ormq_id:
+            if (task_handle.ormq_id or '') != ormq_id:
                 """If OrmQ ID not in database yet, save it."""
-                if self.handle.ormq_id:
-                    log.warning(f'ormq_id already set to: "{self.handle.ormq_id}", changing to "{ormq_id}"')
-                self.handle.ormq_id = ormq_id
-                self.handle.save()
+                if task_handle.ormq_id:
+                    log.warning(f'ormq_id already set to: "{task_handle.ormq_id}", changing to "{ormq_id}"')
+                task_handle.ormq_id = ormq_id
+                task_handle.save()
         else:
             log.warning('no "ack_id" attribute in task info dictionary')
+
+        self.task_dict: dict = task_dict;  """Dictionary passed to Django-Q pre_execute callback handler."""
+        self.handle = task_handle;  """Task Handle"""
+        self._history: list[TaskHandle] = [];  """List of Task Handles of the retry chain."""
 
     def __str__(self):
         handle_id = self.handle.id
@@ -163,11 +173,27 @@ def managed_task(_func: callable = None):
 
                 log.info(f'running task: {task_info}')
                 return func(*args, **kwargs, task_info=task_info)
+
+            except Exception:
+                if task_info.is_last_try:
+                    log.info(f'task failed permanently: {task_info}', exc_info=True)
+                else:
+                    # queue task retry if not last try
+                    next_task_handle = async_task_with_handle(func, *args, prev=task_info.handle, **kwargs)
+                    log.info(f'task try failed: {task_info}, next try {next_task_handle.try_num} queued', exc_info=True)
+
+                # propagate exception to be saved in Django-Q scheduler database table of failed tasks
+                raise
+
             finally:
+                # verify the task info in the _thread_locals is not changed during task execution
                 actual_task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
+                actual_task_id = actual_task_info.handle.task_id
+                expected_task_id = task_info.handle.task_id
                 if actual_task_info != task_info:
-                    raise RuntimeError(
-                        f'incorrect task id: {actual_task_info.handle.task_id}, expected: {task_info.handle.task_id}')
+                    raise RuntimeError(f'incorrect task id: {actual_task_id}, expected: {expected_task_id}')
+
+                # always clear correctly saved task_info attribute on exit
                 delattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME)
 
         return wrapper
@@ -183,7 +209,7 @@ __old_log_record_factory = logging.getLogRecordFactory()
 
 
 def record_with_task_id_factory(*args, **kwargs):
-    """Adds task_id attribute to log every record. If no task_id - empty string."""
+    """Adds task_id attribute to every log record. If no task_id - sets attribute to empty string."""
     record = __old_log_record_factory(*args, **kwargs)
     task_info: TaskInfo = getattr(_thread_locals, CURRENT_TASK_INFO_ATTR_NAME, None)
     record.task_id = task_info.handle.task_id if task_info else ''
