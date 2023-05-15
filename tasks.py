@@ -179,7 +179,8 @@ def managed_task(_func: callable = None):
                     log.info(f'task failed permanently: {task_info}', exc_info=True)
                 else:
                     # queue task retry if not last try
-                    next_task_handle = async_task_with_handle(func, *args, prev=task_info.handle, **kwargs)
+                    func_name = f'{func.__module__}.{func.__name__}'
+                    next_task_handle = async_task_with_handle(func_name, *args, prev=task_info.handle, **kwargs)
                     log.info(f'task try failed: {task_info}, next try {next_task_handle.try_num} queued', exc_info=True)
 
                 # propagate exception to be saved in Django-Q scheduler database table of failed tasks
