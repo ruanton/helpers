@@ -99,6 +99,8 @@ def async_task_with_handle(func, *args, prev: TaskHandle = None, tries: int = No
     """
     if prev and tries:
         raise ValueError('prev and tries cannot be given simultaneously')
+    if prev and prev.next:
+        raise RuntimeError(f'next task try for that prev handle already queued, next handle_id={prev.next.id}')
     if not tries and not prev:
         # by default only one try is requested
         tries = 1

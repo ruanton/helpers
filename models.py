@@ -39,7 +39,7 @@ class TaskHandle(models.Model):
     """Unique ID of the record in Django-Q ormq table."""
 
     cancel_requested = models.BooleanField('Cancel', default=False, help_text='task cancellation requested')
-    """Running tasks supposed to check this flag and gratefully terminate as soon as possible."""
+    """Flag for cancellation. Running tasks supposed to check this flag and gratefully terminate as soon as possible."""
 
     prev = models.ForeignKey(
         to='self', on_delete=models.CASCADE, related_name='next_handle', null=True, blank=True, editable=False,
