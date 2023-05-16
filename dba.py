@@ -8,6 +8,7 @@ import logging
 from typing import Any, Type
 from sqlalchemy import create_engine, DateTime, Integer, String, Text, BigInteger
 from sqlalchemy.orm import sessionmaker, DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.engine import URL
 from django.conf import settings
 
 # local imports
@@ -45,6 +46,7 @@ class LogEntry(Base):
 def derive_sa_connection_string() -> str:
     """
     Derives SqlAlchemy database connection string from Django default database configuration.
+    TODO: more universal
     """
     db_settings = settings.DATABASES['default']
 
@@ -58,6 +60,21 @@ def derive_sa_connection_string() -> str:
         port = f':{db_settings["PORT"]}' if 'PORT' in db_settings and db_settings["PORT"] else ''
         name = db_settings['NAME']
         sql_alchemy_connection = f'postgresql+psycopg2://{user}:{password}@{host}{port}/{name}'
+
+    elif db_settings['ENGINE'] == 'mssql':
+        host = (db_settings['HOST'] if 'HOST' in db_settings else None) or 'localhost'
+        name = db_settings['NAME']
+        sql_alchemy_connection = URL.create(
+            'mssql+pyodbc',
+            host=host,
+            port=1433,
+            database=name,
+            query={
+                "driver": "ODBC Driver 17 for SQL Server",
+                "TrustServerCertificate": "yes",
+                "authentication": "ActiveDirectoryIntegrated",
+            },
+        )
 
     else:
         # to extend: https://docs.sqlalchemy.org/en/20/core/engines.html
