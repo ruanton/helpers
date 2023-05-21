@@ -271,8 +271,10 @@ def js_click(element, timeout: float = DEFAULT_TIMEOUT, wait_changes: bool = Tru
         wait_for_ajax(driver, timeout)
 
 
-def locate_element(element, xpath_or_id: str, error_message: str = None) -> WebElement:
-    if xpath_or_id.startswith('/') or xpath_or_id.startswith('./'):
+def locate_element(element, xpath_or_id: str, error_message: str = None, by: By = None) -> WebElement:
+    if by is not None:
+        els = element.find_elements(by, xpath_or_id)
+    elif xpath_or_id.startswith('/') or xpath_or_id.startswith('./'):
         els = element.find_elements(By.XPATH, xpath_or_id)
     else:
         els = element.find_elements(By.ID, xpath_or_id)
@@ -280,9 +282,9 @@ def locate_element(element, xpath_or_id: str, error_message: str = None) -> WebE
     if error_message:
         error_message += ' - '
     if not els:
-        raise RuntimeError(f'{error_message}cannot locate elements with xpath or id "{xpath_or_id}"')
+        raise RuntimeError(f'{error_message}cannot locate elements with locator "{xpath_or_id}"')
     if len(els) > 1:
-        raise RuntimeError(f'{error_message}there are several elements with xpath or id "{xpath_or_id}"')
+        raise RuntimeError(f'{error_message}there are several elements with locator "{xpath_or_id}"')
 
     return els[0]
 
