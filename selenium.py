@@ -295,15 +295,19 @@ def set_input(
 ):
     el = locate_element(driver, xpath_or_id, not_found_error_msg)
     if clear_via_ctrl_a:
-        el.send_keys(Keys.CONTROL + 'a')
+        el.send_keys(Keys.CONTROL + 'a' + Keys.BACKSPACE)
     else:
         el.clear()
+
     if set_via_js:
         driver.execute_script(f'arguments[0].value = "{text}"', el)
     else:
-        el.send_keys(text)
+        if text:
+            el.send_keys(text)
+
     if send_tab:
         el.send_keys(Keys.TAB)
+
     current_text = el.get_attribute('value')
     if ignore_symbols:
         translate_dict = {ord(x): '' for x in ignore_symbols}
