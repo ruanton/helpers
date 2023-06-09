@@ -6,8 +6,8 @@ import zipfile
 from random import choice
 from tempfile import NamedTemporaryFile
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver import Chrome
-from selenium.webdriver.chrome.webdriver import DEFAULT_PORT
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
@@ -109,7 +109,6 @@ def _create_chrome_proxy_extension(proxy: str) -> NamedTemporaryFile:
 class ChromeEx(Chrome):
     def __init__(
             self, executable_path: str,
-            port: int = DEFAULT_PORT,
             options: Options = None,
             extensions_base_dir: str = None,
             user_agent: str = DEFAULT_USER_AGENT,
@@ -157,7 +156,7 @@ class ChromeEx(Chrome):
         options.add_argument(f'user-agent="{user_agent}"')
         options.add_argument('disable-blink-features=AutomationControlled')
 
-        super().__init__(executable_path=executable_path, port=port, options=options, **kwargs)
+        super().__init__(options=options, service=Service(executable_path=executable_path), **kwargs)
 
         self.set_window_size(*dimensions)
         self.set_window_position(*position)
