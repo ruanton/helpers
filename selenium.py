@@ -153,8 +153,15 @@ class ChromeEx(Chrome):
 
         options.add_argument(f'--window-size={dimensions[0]},{dimensions[1]}')
         options.add_argument('--disable-notifications')
+        options.add_argument('--disable-web-security')
         options.add_argument(f'user-agent="{user_agent}"')
         options.add_argument('disable-blink-features=AutomationControlled')
+
+        prefs = {
+            'credentials_enable_service': False,
+            'profile.password_manager_enabled': False
+        }
+        options.add_experimental_option('prefs', prefs)
 
         super().__init__(options=options, service=Service(executable_path=executable_path), **kwargs)
 
