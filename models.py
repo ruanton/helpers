@@ -113,9 +113,23 @@ class LogEntry(models.Model):
         return format_html(
             '<span style="color: {color};">{msg}</span>',
             color=color,
-            msg=f'{self.created_at.astimezone().strftime("%Y-%m-%d %X")} {self.name} — {self.msg}'
+            msg=f'[{self.created_at.astimezone().strftime("%Y-%m-%d %X")}] {self.name} — {self.msg}'
         )
     colored_description.short_description = 'Message with info'
+
+    def colored_description_short(self):
+        if self.level in [logging.NOTSET, logging.INFO]:
+            color = 'green'
+        elif self.level in [logging.WARNING, logging.DEBUG]:
+            color = 'orange'
+        else:
+            color = 'red'
+        return format_html(
+            '<span style="color: {color};">{msg}</span>',
+            color=color,
+            msg=f'[{self.created_at.astimezone().strftime("%Y-%m-%d %X")}] - {self.msg}'
+        )
+    colored_description_short.short_description = 'Message with info'
 
     def traceback(self):
         return format_html('<pre><code>{content}</code></pre>', content=self.trace if self.trace else '')
