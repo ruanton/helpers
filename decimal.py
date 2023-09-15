@@ -9,7 +9,7 @@ def dec_round(func: Callable[[], Decimal], decimal_places: int = None, rounding:
         if rounding:
             ctx.rounding = rounding
         value = func()
-        if decimal_places:
+        if decimal_places is not None:
             value = value.quantize(Decimal(f'0.{"0"*decimal_places}'), rounding=rounding)
     return value
 
